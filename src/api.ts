@@ -1,5 +1,5 @@
 import { Meta, Note, Priority, Task, TodoView } from './types';
-import { encodeBase64, gh } from './github/client';
+import { encodeBase64, gh, GitHubError } from './github/client';
 import { mutateStore, readStore } from './github/store';
 import {
   fetchIssue,
@@ -113,10 +113,40 @@ export interface ConnectionCheck {
 
 // Used by the setup screen: proves the token works, the repo is reachable, and
 // reports whether tasks.json is already there.
+//
+// The two failures are checked separately because GitHub reports them
+// identically. A token that authenticates fine but was never granted the repo
+// gets a bare 404 "Not Found" — the same body you'd get for a typo'd repo name —
+// which tells the user nothing about which of the two to go fix.
 export async function verifyConnection(): Promise<ConnectionCheck> {
   const s = requireSettings();
-  const user = await gh<{ login: string }>('/user');
-  const repo = await gh<{ full_name: string }>(`/repos/${s.owner}/${s.repo}`);
+
+  let user: { login: string };
+  try {
+    user = await gh<{ login: string }>('/user');
+  } catch (e) {
+    if (e instanceof GitHubError && (e.status === 401 || e.status === 404)) {
+      throw new GitHubError(e.status, 'GitHub rejected this token. Check it was pasted in full, and that it has not expired.');
+    }
+    throw e;
+  }
+
+  let repo: { full_name: string };
+  try {
+    repo = await gh<{ full_name: string }>(`/repos/${s.owner}/${s.repo}`);
+  } catch (e) {
+    if (e instanceof GitHubError && e.status === 404) {
+      throw new GitHubError(
+        404,
+        `The token authenticated as ${user.login}, but cannot see ${s.owner}/${s.repo}. ` +
+          `Either the name is wrong, or — far more likely — the token's "Repository access" ` +
+          `does not list this repo. Open the token's settings, choose "Only select repositories", ` +
+          `and make sure ${s.repo} is in the list.`,
+      );
+    }
+    throw e;
+  }
+
   const store = await readStore();
   return {
     login: user.login,
