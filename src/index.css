@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+
+/* Keep the sticky header clear of the iOS notch when installed as a PWA. */
+@supports (padding: max(0px)) {
+  header { padding-top: max(0px, env(safe-area-inset-top)); }
+}
