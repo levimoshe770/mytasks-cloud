@@ -227,7 +227,9 @@ export function TaskTable({ tasks, onRowClick, onToggleStar, showCompleted, show
       header: 'Subject',
       cell: info => {
         const row = info.row.original;
-        const showMilestone = row.source === 'github' && isMilestoneSet(row.milestone);
+        // Any task can carry a milestone, not just issue-linked ones — tasks
+        // generated from a plan use it for the phase they belong to.
+        const showMilestone = isMilestoneSet(row.milestone);
         const issueRef = parseSourceRef(row.sourceRef);
         const childCount = childCountById.get(row.id) ?? 0;
         const parentSubject = row.parentId != null ? subjectById.get(row.parentId) : undefined;
@@ -372,7 +374,7 @@ export function TaskTable({ tasks, onRowClick, onToggleStar, showCompleted, show
           {table.getRowModel().rows.map(row => {
             const t = row.original;
             const open = t.status === 'pending' || t.status === 'in_progress';
-            const mustResolve = t.source === 'github' && open && isMilestoneSet(t.milestone);
+            const mustResolve = open && isMilestoneSet(t.milestone);
             const mustResolveNow = mustResolve && !!currentMilestone && t.milestone === currentMilestone;
             return (
             <tr
