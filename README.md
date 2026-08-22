@@ -110,6 +110,66 @@ Offline, the app opens read-only from the last copy saved on that device and the
 sync badge reads *Offline*. Writes are refused rather than queued — a queued write
 would have to be replayed against a blob that has since moved.
 
+## The week panel
+
+A strip above the task table answering "what is this week, and does it fit".
+Collapsible, and `‹ today ›` walks forward and back through the plan.
+
+Four lanes, and the reason it isn't just "tasks due this week":
+
+| Lane | What lands in it |
+|---|---|
+| **Late** | Deadline passed, still open. Current week only |
+| **Due this week** | Deadline inside the window |
+| **Should be working on** | Not due yet — but the hours left no longer fit in the weeks left |
+| **Together** | Tasks tagged `both`, budgeted against session hours instead |
+
+**"Should be working on" is the point of the panel.** In a plan spread over
+months, almost nothing is ever *due* this week and the week is still full. What
+fills it is work owed now against a deadline weeks away. A task appears once its
+remaining hours need all but one of the weeks remaining — one week before it
+becomes critical, rather than after.
+
+### Hours and capacity
+
+Set **solo hours/week**, **session hours/week** and **your owner tag** in
+Settings; they live in `tasks.json`, so a phone and a laptop cannot disagree
+about whether a week is overloaded. Tasks carry an optional `estimateHours`.
+
+- Work **due** this week is charged in full; **ongoing** work is charged pro-rata
+  across the weeks left.
+- Solo and session hours are **separate budgets** — time with someone else cannot
+  do solo work.
+- A task owned by someone else is **shown but never charged to you**, and never
+  raises an alert about your capacity.
+- A task with **no estimate is not counted**, and says so rather than quietly
+  making the week look emptier than it is.
+- **Ticking a todo shrinks the estimate** proportionally, so progress moves the
+  bar without a second "hours spent" field to maintain.
+
+### Alerts
+
+- **Late** — deadline passed.
+- **At risk** — due this week, still `pending`.
+- **Overloaded** — planned hours exceed the week's capacity.
+- **Behind the rate** — the required hours/week exceed capacity, so the deadline
+  is unreachable. Reports the date it *will* land on, which is the part you can
+  act on.
+
+### Previewing it
+
+The app needs a GitHub token before it renders anything, which makes eyeballing
+a layout change expensive. `week-preview.html` mounts the panel with fixture data:
+
+```
+npm run dev
+# → http://localhost:5173/week-preview.html
+```
+
+Dev only — Vite serves any root `.html`, but only `index.html` is a build input,
+so it never ships. Logic lives in `src/week.ts` as pure functions and is covered
+by `src/week.test.ts`.
+
 ## Scripts
 
 | Command | Does |

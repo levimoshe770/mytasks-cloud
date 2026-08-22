@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useMeta, useSetCurrentMilestone } from '../hooks/useTasks';
+import { useMeta, useSetCurrentMilestone, useSetPlanning } from '../hooks/useTasks';
+import { DEFAULT_WEEK_CONFIG } from '../week';
 import { getSettings } from '../settings';
 
 interface Props {
@@ -12,7 +13,33 @@ export function SettingsDialog({ onClose, onChangeConnection, onSignOut }: Props
   const settings = getSettings();
   const meta = useMeta();
   const setMilestone = useSetCurrentMilestone();
+  const setPlanning = useSetPlanning();
   const [value, setValue] = useState(meta.data?.currentMilestone ?? '');
+  const [ownerTag, setOwnerTag] = useState(
+    meta.data?.ownerTag ?? DEFAULT_WEEK_CONFIG.ownerTag);
+  const [weekly, setWeekly] = useState(
+    String(meta.data?.weeklyCapacityHours ?? DEFAULT_WEEK_CONFIG.weeklyCapacityHours));
+  const [session, setSession] = useState(
+    String(meta.data?.sessionCapacityHours ?? DEFAULT_WEEK_CONFIG.sessionCapacityHours));
+
+  // An unparseable or negative number would silently make the capacity bar lie,
+  // so it is rejected rather than coerced to zero.
+  function num(v: string): number | null {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+  const weeklyNum = num(weekly);
+  const sessionNum = num(session);
+
+  async function savePlanning(e: React.FormEvent) {
+    e.preventDefault();
+    if (weeklyNum == null || sessionNum == null) return;
+    await setPlanning.mutateAsync({
+      ownerTag: ownerTag.trim() || null,
+      weeklyCapacityHours: weeklyNum,
+      sessionCapacityHours: sessionNum,
+    });
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +65,58 @@ export function SettingsDialog({ onClose, onChangeConnection, onSignOut }: Props
             {settings?.issueRepo && ` · issues default to ${settings.issueRepo}`}
           </div>
         </section>
+
+        <form onSubmit={savePlanning} className="space-y-3">
+          <h3 className="text-xs text-gray-500 uppercase tracking-wide">Weekly planning</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs text-gray-500 block mb-1">Solo hours / week</span>
+              <input
+                value={weekly}
+                onChange={e => setWeekly(e.target.value)}
+                inputMode="decimal"
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-gray-500 block mb-1">Session hours / week</span>
+              <input
+                value={session}
+                onChange={e => setSession(e.target.value)}
+                inputMode="decimal"
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-xs text-gray-500 block mb-1">My owner tag</span>
+            <input
+              value={ownerTag}
+              onChange={e => setOwnerTag(e.target.value)}
+              placeholder="e.g. moshe"
+              className="w-full border rounded px-3 py-2 text-sm"
+            />
+          </label>
+          <p className="text-xs text-gray-500">
+            Tasks tagged with your owner tag count against solo hours; tasks tagged{' '}
+            <code>both</code> count against session hours. The two are budgeted separately
+            because they are not interchangeable. Anyone else's tasks are shown but never
+            charged to you.
+          </p>
+          {(weeklyNum == null || sessionNum == null) && (
+            <p className="text-xs text-rose-600">Hours must be a number of zero or more.</p>
+          )}
+          <button
+            type="submit"
+            disabled={setPlanning.isPending || weeklyNum == null || sessionNum == null}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded px-3 py-1.5 text-sm"
+          >
+            {setPlanning.isPending ? 'Saving…' : 'Save planning'}
+          </button>
+          {setPlanning.isError && (
+            <p className="text-xs text-rose-600">{(setPlanning.error as Error).message}</p>
+          )}
+        </form>
 
         <form onSubmit={save} className="space-y-2">
           <label className="block">

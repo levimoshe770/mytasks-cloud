@@ -12,6 +12,7 @@ import { TaskDrawer } from './components/TaskDrawer';
 import { AddTaskDialog } from './components/AddTaskDialog';
 import { InboxComposer } from './components/InboxComposer';
 import { TodoBoard } from './components/TodoBoard';
+import { WeekPanel } from './components/WeekPanel';
 import { cn } from './util/cn';
 
 // 'tasks' = the task table; 'todos' = the flat cross-task checklist view.
@@ -194,6 +195,8 @@ function Main({ onDisconnected, onReconnected }: MainProps) {
             {(tasksQuery.error as Error).message}
           </div>
         )}
+        {tasksQuery.data && <WeekPanel tasks={tasks} onOpenTask={setSelected} />}
+
         {view === 'todos' ? (
           <TodoBoard tasks={tasks} onOpenTask={setSelected} search={search} />
         ) : tasksQuery.data ? (

@@ -51,6 +51,10 @@ export interface Task {
   // Optional so an existing tasks.json needs no migration — every reader must
   // use `task.todos ?? []`.
   todos?: Todo[];
+  // Rough size of the task in hours. Optional so no migration is needed — the
+  // week panel simply does not count a task that has none, and says so rather
+  // than pretending the week is emptier than it is.
+  estimateHours?: number | null;
   // Per-task monotonic counter for todo ids. Never reuses an id after a delete,
   // so a stale client can't toggle the wrong item. Absent on legacy tasks;
   // `addTodo` seeds it from the highest existing id.
@@ -73,6 +77,12 @@ export interface StoreConfig {
   // The release currently being worked. Tasks whose milestone matches are
   // highlighted as "must be resolved now".
   currentMilestone: string | null;
+  // Planning inputs for the week panel. In tasks.json rather than localStorage
+  // so every device agrees — a capacity that differs between phone and laptop
+  // would produce two different answers to "am I overloaded".
+  ownerTag?: string | null;
+  weeklyCapacityHours?: number | null;
+  sessionCapacityHours?: number | null;
 }
 
 // The whole contents of tasks.json.
@@ -92,4 +102,7 @@ export const EMPTY_STORE: TasksStore = {
 
 export interface Meta {
   currentMilestone: string | null;
+  ownerTag: string | null;
+  weeklyCapacityHours: number | null;
+  sessionCapacityHours: number | null;
 }

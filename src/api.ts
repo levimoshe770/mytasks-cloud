@@ -1,4 +1,4 @@
-import { Meta, Note, Priority, Task, TodoView } from './types';
+import { Meta, Note, Priority, Task, TasksStore, TodoView } from './types';
 import { encodeBase64, gh, GitHubError } from './github/client';
 import { mutateStore, readStore } from './github/store';
 import {
@@ -36,6 +36,7 @@ export interface CreateTaskInput {
   tags?: string[];
   parentId?: number | null;
   initialNote?: string;
+  estimateHours?: number | null;
 }
 
 export interface PatchTaskInput {
@@ -49,6 +50,7 @@ export interface PatchTaskInput {
   milestone?: string | null;
   parentId?: number | null;
   tags?: string[];
+  estimateHours?: number | null;
 }
 
 // --- todos view --------------------------------------------------------------
@@ -158,6 +160,18 @@ export async function verifyConnection(): Promise<ConnectionCheck> {
 
 // --- the API -----------------------------------------------------------------
 
+// One place that decides what an absent config field means, so a tasks.json
+// written before the week panel existed still yields a usable Meta.
+function readMeta(store: TasksStore): Meta {
+  const c = store.config;
+  return {
+    currentMilestone: c?.currentMilestone ?? null,
+    ownerTag: c?.ownerTag ?? null,
+    weeklyCapacityHours: c?.weeklyCapacityHours ?? null,
+    sessionCapacityHours: c?.sessionCapacityHours ?? null,
+  };
+}
+
 export const api = {
   listTasks: async (): Promise<Task[]> => {
     const store = await readStore();
@@ -171,13 +185,24 @@ export const api = {
 
   meta: async (): Promise<Meta> => {
     const store = await readStore();
-    return { currentMilestone: store.config?.currentMilestone ?? null };
+    return readMeta(store);
   },
 
   setCurrentMilestone: (value: string | null): Promise<Meta> =>
     mutateStore('mytasks: set current milestone', draft => {
       draft.config = { ...(draft.config ?? { currentMilestone: null }), currentMilestone: value };
-      return { currentMilestone: value };
+      return readMeta(draft);
+    }),
+
+  // Planning inputs for the week panel. Written to tasks.json rather than
+  // localStorage so the phone and the laptop cannot disagree about whether a
+  // week is overloaded.
+  setPlanning: (
+    value: { ownerTag?: string | null; weeklyCapacityHours?: number | null; sessionCapacityHours?: number | null },
+  ): Promise<Meta> =>
+    mutateStore('mytasks: set planning capacity', draft => {
+      draft.config = { ...(draft.config ?? { currentMilestone: null }), ...value };
+      return readMeta(draft);
     }),
 
   createTask: (data: CreateTaskInput): Promise<Task> =>
@@ -199,6 +224,7 @@ export const api = {
         sourceRef: null,
         milestone: null,
         parentId: data.parentId ?? null,
+        estimateHours: data.estimateHours ?? null,
         tags: data.tags ?? [],
         remindedAt: null,
         notes: data.initialNote ? [{ ts: isoNow(), text: data.initialNote }] : [],

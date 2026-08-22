@@ -51,6 +51,16 @@ function selfAndDescendantIds(all: Task[], rootId: number): Set<number> {
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'critical'];
 const STATUSES: Status[] = ['to_review', 'pending', 'in_progress', 'suspended', 'completed', 'deleted'];
 
+// Hours as typed. Rejects negatives and junk by returning undefined, which the
+// caller reads as "don't save this yet" rather than "clear it".
+function parseEstimate(raw: string): number | null | undefined {
+  const t = raw.trim();
+  if (t === '') return null;
+  const n = Number(t);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return n;
+}
+
 export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
   const [subject, setSubject] = useState(task.subject);
   const [description, setDescription] = useState(task.description);
@@ -60,6 +70,8 @@ export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
   const [milestone, setMilestone] = useState(task.milestone ?? '');
   const [parentId, setParentId] = useState<number | null>(task.parentId ?? null);
   const [tagsStr, setTagsStr] = useState(task.tags.join(', '));
+  const [estimateStr, setEstimateStr] = useState(
+    task.estimateHours == null ? '' : String(task.estimateHours));
   const [noteText, setNoteText] = useState('');
   const [showAddSub, setShowAddSub] = useState(false);
 
@@ -116,6 +128,9 @@ export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
     const prevTags = prev.tags.join(', ');
     const newTags = task.tags.join(', ');
     syncField(prevTags, newTags, setTagsStr);
+    const prevEst = prev.estimateHours == null ? '' : String(prev.estimateHours);
+    const newEst = task.estimateHours == null ? '' : String(task.estimateHours);
+    syncField(prevEst, newEst, setEstimateStr);
 
     lastSyncedRef.current = task;
   }, [task]);
@@ -126,6 +141,11 @@ export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
   useEffect(() => {
     const taskTags = task.tags.join(', ');
     const taskDeadlineLocal = toLocalInputValue(task.deadline || null);
+    const taskEstimate = task.estimateHours == null ? '' : String(task.estimateHours);
+    // Blank clears the estimate; anything unparseable is treated as "not yet
+    // typed" and simply never saved, so a half-entered "1." can't wipe a value.
+    const estimateValue = parseEstimate(estimateStr);
+    const estimateOk = estimateStr.trim() === '' || estimateValue != null;
     const dirty =
       subject !== task.subject ||
       description !== task.description ||
@@ -134,7 +154,8 @@ export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
       taskDeadlineLocal !== deadlineLocal ||
       milestone !== (task.milestone ?? '') ||
       parentId !== (task.parentId ?? null) ||
-      taskTags !== tagsStr;
+      taskTags !== tagsStr ||
+      (estimateOk && taskEstimate !== estimateStr.trim());
     if (!dirty) return;
     const handle = setTimeout(() => {
       patch.mutate({
@@ -148,12 +169,13 @@ export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
           milestone: milestone.trim() || null,
           parentId,
           tags: tagsStr.split(',').map(s => s.trim()).filter(Boolean),
+          ...(estimateOk ? { estimateHours: estimateValue } : {}),
         },
       });
     }, 700);
     return () => clearTimeout(handle);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, description, priority, status, deadlineLocal, milestone, parentId, tagsStr, task]);
+  }, [subject, description, priority, status, deadlineLocal, milestone, parentId, tagsStr, estimateStr, task]);
 
   async function appendNote() {
     if (!noteText.trim()) return;
@@ -272,6 +294,16 @@ export function TaskDrawer({ task, onClose, onOpenTask }: Props) {
                 type="datetime-local"
                 value={deadlineLocal}
                 onChange={e => setDeadlineLocal(e.target.value)}
+                className="w-full border rounded px-3 py-1.5 text-sm"
+              />
+            </Field>
+
+            <Field label="Estimate (hours)">
+              <input
+                value={estimateStr}
+                onChange={e => setEstimateStr(e.target.value)}
+                inputMode="decimal"
+                placeholder="blank = not counted in the week's capacity"
                 className="w-full border rounded px-3 py-1.5 text-sm"
               />
             </Field>

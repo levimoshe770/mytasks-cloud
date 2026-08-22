@@ -123,6 +123,18 @@ export function useMergeTask() {
     api.mergeTask(targetId, sourceId));
 }
 
+export function useSetPlanning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (value: {
+      ownerTag?: string | null;
+      weeklyCapacityHours?: number | null;
+      sessionCapacityHours?: number | null;
+    }) => api.setPlanning(value),
+    onSuccess: () => qc.invalidateQueries({ queryKey: META_KEY }),
+  });
+}
+
 export function useSetCurrentMilestone() {
   const qc = useQueryClient();
   return useMutation({

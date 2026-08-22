@@ -1,0 +1,18 @@
+<!doctype html>
+<!--
+  Dev-only harness for the week panel. Vite serves any root .html in `npm run
+  dev`, but only `index.html` is a build input, so this never ships. It exists
+  because the real app needs a GitHub token before it renders anything, which
+  makes eyeballing a layout change unnecessarily expensive.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Week panel — preview</title>
+  </head>
+  <body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="module" src="/src/week-preview.tsx"></script>
+  </body>
+</html>
