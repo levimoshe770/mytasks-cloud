@@ -13,6 +13,22 @@ export function formatDeadline(value: string | null | undefined): string {
   return `${dateStr} ${timeStr}`;
 }
 
+// Compact form for the phone card. Every deadline in this tracker is stored at
+// the same time of day, so the clock is noise; what matters on a small screen is
+// the date, and whether it has already gone.
+export function formatDeadlineShort(value: string | null | undefined): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  const days = Math.round((d.getTime() - Date.now()) / 86_400_000);
+  const date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  if (days < 0) return `${date} · ${-days}d late`;
+  if (days === 0) return `${date} · today`;
+  if (days === 1) return `${date} · tomorrow`;
+  if (days <= 7) return `${date} · ${days}d`;
+  return date;
+}
+
 export function toLocalInputValue(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);

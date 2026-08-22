@@ -43,6 +43,10 @@ function Main({ onDisconnected, onReconnected }: MainProps) {
   const [showReconnect, setShowReconnect] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  // On a phone the counts and the two filter toggles cost a whole header row
+  // each, and the header was already eating a fifth of the screen. They hide
+  // behind this on small viewports and are always visible from sm up.
+  const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<View>('tasks');
 
@@ -111,7 +115,7 @@ function Main({ onDisconnected, onReconnected }: MainProps) {
               {currentMilestone}
             </span>
           )}
-          <span className="text-sm text-gray-500">
+          <span className="hidden sm:inline text-sm text-gray-500">
             {openCount} open
             {reviewCount > 0 && <span className="text-amber-600"> · {reviewCount} to review</span>}
             {suspendedCount > 0 && <span className="text-gray-400"> · {suspendedCount} suspended</span>}
@@ -150,30 +154,52 @@ function Main({ onDisconnected, onReconnected }: MainProps) {
           </div>
           {view === 'tasks' && (
             <>
-              <label className="text-xs text-gray-600 flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={showCompleted}
-                  onChange={e => setShowCompleted(e.target.checked)}
-                />
-                completed
-              </label>
-              <label className="text-xs text-gray-600 flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={showDeleted}
-                  onChange={e => setShowDeleted(e.target.checked)}
-                />
-                deleted
-              </label>
+              <button
+                onClick={() => setShowFilters(v => !v)}
+                aria-expanded={showFilters}
+                className={cn(
+                  'sm:hidden text-xs rounded ring-1 ring-gray-300 px-2 py-1',
+                  (showCompleted || showDeleted) ? 'bg-indigo-50 text-indigo-700 ring-indigo-300' : 'text-gray-600',
+                )}
+              >
+                Filters{(showCompleted || showDeleted) && ' •'}
+              </button>
+              <div
+                className={cn(
+                  'items-center gap-3',
+                  showFilters ? 'flex w-full sm:w-auto' : 'hidden sm:flex',
+                )}
+              >
+                <label className="text-xs text-gray-600 flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={showCompleted}
+                    onChange={e => setShowCompleted(e.target.checked)}
+                  />
+                  completed
+                </label>
+                <label className="text-xs text-gray-600 flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={showDeleted}
+                    onChange={e => setShowDeleted(e.target.checked)}
+                  />
+                  deleted
+                </label>
+                <span className="sm:hidden text-xs text-gray-500">
+                  {openCount} open
+                  {reviewCount > 0 && <span className="text-amber-600"> · {reviewCount} to review</span>}
+                </span>
+              </div>
             </>
           )}
           <SyncBadge isFetching={tasksQuery.isFetching} isError={!!tasksQuery.error} />
           <button
             onClick={() => setShowAdd(true)}
+            aria-label="New task"
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded px-3 py-1.5 text-sm"
           >
-            + New task
+            +<span className="hidden sm:inline"> New task</span>
           </button>
           <button
             onClick={() => setShowSettings(true)}

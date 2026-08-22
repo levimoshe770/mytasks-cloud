@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-table';
 import { Priority, Status, Task } from '../api';
 import { cn } from '../util/cn';
-import { formatDeadline } from '../util/format';
+import { formatDeadline, formatDeadlineShort } from '../util/format';
 import { useMeta } from '../hooks/useTasks';
 import { issueUrl, parseSourceRef } from '../github/issues';
 import { StatusIcon, STATUS_LABEL } from './StatusIcon';
@@ -18,6 +18,15 @@ import { StatusIcon, STATUS_LABEL } from './StatusIcon';
 // "unspecified" guards are there for rows imported from the old tracker.
 export function isMilestoneSet(m: string | null | undefined): m is string {
   return !!m && m.trim() !== '' && m.trim() !== '---' && !/^unspecified$/i.test(m.trim());
+}
+
+// The row accent is meaning, not decoration — it marks work that must be
+// resolved. Shared so the phone list and the desktop table cannot drift apart.
+function rowTone(t: Task, currentMilestone: string | null) {
+  const open = t.status === 'pending' || t.status === 'in_progress';
+  const mustResolve = open && isMilestoneSet(t.milestone);
+  const mustResolveNow = mustResolve && !!currentMilestone && t.milestone === currentMilestone;
+  return { mustResolve, mustResolveNow };
 }
 
 function TruncatedText({ text, max = 80 }: { text: string; max?: number }) {
@@ -352,8 +361,29 @@ export function TaskTable({ tasks, onRowClick, onToggleStar, showCompleted, show
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const empty = search.trim() ? `No tasks match "${search.trim()}".` : 'No tasks.';
+
   return (
-    <div className="overflow-x-auto rounded-lg ring-1 ring-gray-200 bg-white">
+    <>
+      {/* Phone: a stacked list. The table below is eight columns and 530px wide,
+          which on a 375px screen means sideways-scrolling to read a subject. */}
+      <ul className="sm:hidden rounded-lg ring-1 ring-gray-200 bg-white divide-y divide-gray-100">
+        {data.map(t => (
+          <TaskCard
+            key={t.id}
+            task={t}
+            currentMilestone={currentMilestone}
+            childCount={childCountById.get(t.id) ?? 0}
+            onOpen={onRowClick}
+            onToggleStar={onToggleStar}
+          />
+        ))}
+        {data.length === 0 && (
+          <li className="px-3 py-6 text-center text-gray-400 text-sm">{empty}</li>
+        )}
+      </ul>
+
+    <div className="hidden sm:block overflow-x-auto rounded-lg ring-1 ring-gray-200 bg-white">
       <table className="min-w-full text-sm">
         <thead className="bg-gray-50 text-left text-xs text-gray-600 uppercase tracking-wide">
           {table.getHeaderGroups().map(hg => (
@@ -403,12 +433,95 @@ export function TaskTable({ tasks, onRowClick, onToggleStar, showCompleted, show
           {table.getRowModel().rows.length === 0 && (
             <tr>
               <td colSpan={columns.length} className="px-3 py-6 text-center text-gray-400">
-                {search.trim() ? `No tasks match "${search.trim()}".` : 'No tasks.'}
+                {empty}
               </td>
             </tr>
           )}
         </tbody>
       </table>
     </div>
+    </>
+  );
+}
+
+interface CardProps {
+  task: Task;
+  currentMilestone: string | null;
+  childCount: number;
+  onOpen: (t: Task) => void;
+  onToggleStar: (t: Task) => void;
+}
+
+// One task as a phone-sized card. Carries the same information the table row
+// does, ordered by what is worth reading first on a small screen: what it is,
+// when it is due, then everything else.
+function TaskCard({ task: t, currentMilestone, childCount, onOpen, onToggleStar }: CardProps) {
+  const { mustResolve, mustResolveNow } = rowTone(t, currentMilestone);
+  const overdue = !!t.deadline && new Date(t.deadline).getTime() < Date.now()
+    && t.status !== 'completed' && t.status !== 'deleted';
+  const todos = t.todos ?? [];
+  const doneTodos = todos.filter(td => td.done).length;
+
+  return (
+    <li
+      className={cn(
+        'flex items-start gap-2 px-3 py-2.5',
+        t.starred && 'bg-amber-50/40',
+        mustResolveNow && 'bg-rose-50/50 border-l-4 border-rose-400',
+        mustResolve && !mustResolveNow && 'bg-amber-50/40 border-l-4 border-amber-300',
+        t.status === 'to_review' && 'bg-sky-50/40',
+        t.status === 'suspended' && 'bg-slate-50/60',
+        t.status === 'completed' && 'opacity-60',
+        t.status === 'deleted' && 'opacity-40 italic',
+      )}
+    >
+      <button
+        onClick={() => onToggleStar(t)}
+        aria-label={t.starred ? 'Unstar' : 'Star'}
+        className={cn(
+          'shrink-0 -m-1 p-1 text-xl leading-none min-w-[36px] min-h-[36px]',
+          t.starred ? 'text-amber-400' : 'text-gray-300',
+        )}
+      >
+        {t.starred ? '\u2605' : '\u2606'}
+      </button>
+
+      <button onClick={() => onOpen(t)} className="flex-1 min-w-0 text-left">
+        <div className="flex items-start gap-1.5">
+          <span className="mt-0.5 shrink-0"><StatusIcon status={t.status} /></span>
+          <span className="text-sm font-medium text-gray-900 break-words">{t.subject}</span>
+        </div>
+
+        <div className="mt-1 flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px]">
+          <span className="font-mono text-gray-400">#{t.id}</span>
+          <span className={cn('rounded px-1.5 py-0.5 font-semibold ring-1 ring-inset', PRIORITY_CLASS[t.priority])}>
+            {t.priority}
+          </span>
+          {t.deadline && (
+            <span className={cn(overdue ? 'text-red-600 font-semibold' : 'text-gray-500')}>
+              {formatDeadlineShort(t.deadline)}
+            </span>
+          )}
+          {isMilestoneSet(t.milestone) && (
+            <span className="rounded bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200 px-1.5 py-0.5 font-semibold">
+              {t.milestone}
+            </span>
+          )}
+          {t.estimateHours != null && (
+            <span className="text-gray-400 tabular-nums">{t.estimateHours}h</span>
+          )}
+          {todos.length > 0 && (
+            <span className="text-gray-400 tabular-nums">{doneTodos}/{todos.length}</span>
+          )}
+          {childCount > 0 && <span className="text-gray-400">{childCount} sub</span>}
+          {t.tags
+            .filter(tag => tag.toLowerCase() !== (t.milestone ?? '').toLowerCase())
+            .slice(0, 3)
+            .map(tag => (
+            <span key={tag} className="rounded bg-gray-100 text-gray-600 px-1.5 py-0.5">{tag}</span>
+          ))}
+        </div>
+      </button>
+    </li>
   );
 }

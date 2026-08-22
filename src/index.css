@@ -8,3 +8,37 @@ html, body, #root { height: 100%; }
 @supports (padding: max(0px)) {
   header { padding-top: max(0px, env(safe-area-inset-top)); }
 }
+
+/* Touch sizing. On a finger-driven device the 13px default checkbox and the
+   compact icon buttons are well under a usable tap target, so they get scaled
+   up and padded out — without changing the mouse-driven layout, where the
+   compact sizing is what keeps the table readable. */
+@media (pointer: coarse) {
+  input[type='checkbox'] {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  /* A comfortable target without moving anything: the box stays put, the
+     touchable area grows around it. */
+  input[type='checkbox']::after {
+    content: '';
+    position: absolute;
+    inset: -0.5rem;
+  }
+
+  input[type='checkbox'] {
+    position: relative;
+  }
+
+  button {
+    min-height: 2rem;
+  }
+}
+
+/* Nothing may push the page sideways — a horizontally scrolling body is the
+   difference between "works on a phone" and "technically renders on a phone".
+   Wide content scrolls inside its own container instead. */
+body {
+  overflow-x: hidden;
+}

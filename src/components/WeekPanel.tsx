@@ -72,15 +72,15 @@ export function WeekPanel({ tasks, onOpenTask }: Props) {
         <span className="text-xs text-gray-500">{plan.label}</span>
 
         <div className="inline-flex rounded ring-1 ring-gray-300 overflow-hidden text-xs bg-white">
-          <button onClick={() => setOffset(o => o - 1)} className="px-2 py-0.5 hover:bg-gray-100" title="Previous week">‹</button>
+          <button onClick={() => setOffset(o => o - 1)} className="px-3 py-0.5 min-w-[36px] hover:bg-gray-100" title="Previous week" aria-label="Previous week">‹</button>
           <button
             onClick={() => setOffset(0)}
             disabled={plan.isCurrent}
-            className={cn('px-2 py-0.5 border-x border-gray-300', plan.isCurrent ? 'text-gray-300' : 'hover:bg-gray-100')}
+            className={cn('px-3 py-0.5 border-x border-gray-300', plan.isCurrent ? 'text-gray-300' : 'hover:bg-gray-100')}
           >
             today
           </button>
-          <button onClick={() => setOffset(o => o + 1)} className="px-2 py-0.5 hover:bg-gray-100" title="Next week">›</button>
+          <button onClick={() => setOffset(o => o + 1)} className="px-3 py-0.5 min-w-[36px] hover:bg-gray-100" title="Next week" aria-label="Next week">›</button>
         </div>
 
         {plan.late.length > 0 && <Chip tone="red">{plan.late.length} late</Chip>}

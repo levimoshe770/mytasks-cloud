@@ -156,19 +156,46 @@ about whether a week is overloaded. Tasks carry an optional `estimateHours`.
   is unreachable. Reports the date it *will* land on, which is the part you can
   act on.
 
+## On a phone
+
+The task table is eight columns and ~530px wide. On a 375px screen that meant
+sideways-scrolling to read a subject, so below the `sm` breakpoint the table is
+replaced by a **stacked card list** — same data, same row accents, ordered by
+what is worth reading first: subject, then due date, then everything else.
+
+Also, on small viewports:
+
+- The **counts and the completed/deleted toggles** move behind a `Filters`
+  button. They cost a header row each, and the header was taking a fifth of the
+  screen.
+- **New task** becomes a `+`.
+- The deadline drops the clock — every deadline here is stored at the same time
+  of day, so on a card it reads `Aug 19 · 3d late` rather than
+  `Aug 19 06:00 PM`.
+- `@media (pointer: coarse)` grows checkboxes and pads their hit area out to
+  ~34px without moving anything, and floors button height. The mouse layout is
+  untouched, because the compact sizing is what keeps the table readable.
+- `body { overflow-x: hidden }` — wide content scrolls inside its own container.
+  A horizontally scrolling body is the difference between "works on a phone" and
+  "technically renders on a phone".
+
 ### Previewing it
 
 The app needs a GitHub token before it renders anything, which makes eyeballing
-a layout change expensive. `week-preview.html` mounts the panel with fixture data:
+a layout change expensive enough that nobody does it. Two dev-only harnesses:
 
 ```
 npm run dev
-# → http://localhost:5173/week-preview.html
+# → http://localhost:5173/week-preview.html   the week panel, fixture tasks
+# → http://localhost:5173/app-preview.html    the whole app, in-memory tasks.json
 ```
 
-Dev only — Vite serves any root `.html`, but only `index.html` is a build input,
-so it never ships. Logic lives in `src/week.ts` as pure functions and is covered
-by `src/week.test.ts`.
+`app-preview.html` stubs `fetch` for `api.github.com` and round-trips writes
+through an in-memory store, so the real code path runs — including the drawer
+and mutations. Vite serves any root `.html`, but only `index.html` is a build
+input, so neither ships.
+
+Logic lives in `src/week.ts` as pure functions, covered by `src/week.test.ts`.
 
 ## Scripts
 
